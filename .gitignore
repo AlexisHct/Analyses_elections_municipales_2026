@@ -1,0 +1,8 @@
+# Données brutes 
+data/
+*.parquet
+
+# Environnement vitruel et cache
+__pycache__/
+venv/
+.env
