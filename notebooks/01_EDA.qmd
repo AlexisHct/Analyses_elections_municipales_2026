@@ -1,0 +1,1012 @@
+---
+title: Analyse Électorale - Toulouse
+author: Dr Alexis Hucteau
+format: pdf
+jupyter: python3
+---
+
+**Author:** Dr. Alexis Hucteau  
+**Contact:** [LinkedIn](https://www.linkedin.com/in/alexis-hucteau/) [Malt](https://www.malt.fr/profile/alexishucteau1)  
+**Date:** May 2026
+
+### Licensing Notice
+- **Code:** This work is licensed under the [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html).
+- **Analysis & Visualizations:** The interpretive content of this notebook is licensed under [CC BY-NC-SA 4.0](https://creativecommons.org/licenses/by-nc-sa/4.0/).
+
+*Copyright (c) 2026 Alexis Hucteau. All rights reserved.*
+
+```{python}
+import pandas as pd
+import numpy as np
+
+premier_tour = pd.read_parquet('../data/processed/premier_tour_cleaned.parquet')
+deuxieme_tour = pd.read_parquet('../data/processed/deuxieme_tour_cleaned.parquet')
+```
+
+# Analyse du premier tour
+
+```{python}
+display(premier_tour.head())
+```
+
+```{python}
+emargement = premier_tour['votants'] == premier_tour['votants_ap_emargement']
+
+emargement.value_counts()
+
+display(premier_tour.loc[~emargement, ['bureau', 'votants', 'votants_ap_emargement']])
+```
+
+```{python}
+import matplotlib.pyplot as plt
+
+premier_tour['tx_participation'] = (premier_tour['votants'] / premier_tour['inscrits'])*100
+n, bins, patches = plt.hist(premier_tour['tx_participation'], 50, edgecolor = 'black', facecolor = 'green')
+plt.xlabel('Taux de participation final')
+plt.ylabel('Nombre de bureau de vote')
+plt.title('Taux de participation au premier Tour à travers les différents bureaux de vote')
+```
+
+```{python}
+premier_tour['tx_nuls_blc'] = premier_tour['blancs'] + premier_tour['nuls']
+n, bins, patches = plt.hist(premier_tour['tx_nuls_blc'], 50, edgecolor = 'black', facecolor = 'green')
+plt.xlabel('Taux de votes blancs et nuls')
+plt.ylabel('Nombre de bureau de vote')
+plt.title('Taux de votes blancs et nuls au premier Tour à travers les différents bureaux de vote')
+```
+
+```{python}
+votants_premier_tour = premier_tour['exprimes'].sum()
+
+scores_vivre_mieux = [(premier_tour['Briançon'] / premier_tour['votants']) *100, premier_tour['Briançon']]
+scores_NPA = [(premier_tour['Scalli'] / premier_tour['votants']) *100, premier_tour['Scalli']]
+scores_Lutte = [(premier_tour['Adrada'] / premier_tour['votants']) *100, premier_tour['Adrada']]
+scores_TRAVAILLEURS  = [(premier_tour['Menendez'] / premier_tour['votants']) *100, premier_tour['Menendez']]
+scores_RN = [(premier_tour['Leonardelli'] / premier_tour['votants']) *100, premier_tour['Leonardelli']]
+scores_RECONQUETE  = [(premier_tour['Cottrel'] / premier_tour['votants']) *100, premier_tour['Cottrel']]
+scores_NOUVEL_AIR = [(premier_tour['Meilhac'] / premier_tour['votants']) *100, premier_tour['Meilhac']]
+scores_RV = [(premier_tour['Pedinotti'] / premier_tour['votants']) *100, premier_tour['Pedinotti']]
+scores_Moudenc = [(premier_tour['Moudenc'] / premier_tour['votants']) *100, premier_tour['Moudenc']]
+scores_Piquemal = [(premier_tour['Piquemal'] / premier_tour['votants']) *100, premier_tour['Piquemal']]
+
+scores_gauche = [scores_vivre_mieux[0] + scores_Piquemal[0] + scores_RV[0] + scores_TRAVAILLEURS[0] + scores_Lutte[0] + scores_NPA[0], 
+                 scores_vivre_mieux[1] + scores_Piquemal[1] + scores_RV[1] + scores_TRAVAILLEURS[1] + scores_Lutte[1] + scores_NPA[1]]
+scores_union_deuxieme_tour = [scores_vivre_mieux[0] + scores_Piquemal[0], scores_vivre_mieux[1] + scores_Piquemal[1]]
+scores_droite = [scores_Moudenc[0] + scores_RN[0] + scores_RECONQUETE[0], scores_Moudenc[1] + scores_RN[1] + scores_RECONQUETE[1]]
+scores_premier_tour = {'scores_vivre_mieux' : scores_vivre_mieux, 
+                       'scores_RN' : scores_RN,
+                        'scores_Moudenc' : scores_Moudenc, 'scores_Piquemal' : scores_Piquemal, 
+                        'scores_gauche' : scores_gauche, 'scores_droite' : scores_droite, 'scores_union_deuxieme_tour' : scores_union_deuxieme_tour
+}
+```
+
+```{python}
+n_graphs = len(scores_premier_tour)
+
+fig, axes = plt.subplots(nrows=n_graphs, ncols=1, figsize=(10, 2.5 * n_graphs), sharex=True)
+
+colors = ['pink', 'darkblue', 'blue', 'darkred', 'red', 'blue', 'darkred']
+
+for ax, (nom_variable, donnees), color in zip(axes, scores_premier_tour.items(), colors):
+    
+    ax.hist(donnees[0], bins=50, edgecolor='black', alpha=0.8, facecolor = color)
+    
+    titre_propre = nom_variable.replace('scores_', '').replace('_', ' ').title()
+    ax.set_title(titre_propre, fontsize=12)
+    ax.set_ylabel('Bureaux', fontsize=9)
+
+    score = 100*(donnees[1].sum()) / votants_premier_tour
+   
+    texte_info = f"Score : {score:.1f}%"
+    
+    ax.text(x=65, y=15, s=texte_info, 
+            fontsize=10, 
+            color=color,
+            style='italic') 
+    
+    ax.axvline(x=50, color='red', linestyle='--', linewidth=1.5, label='50%')
+
+axes[-1].set_xlabel('Taux de vote par bureau (%)', fontsize=12)
+
+fig.suptitle('Distribution des votes au premier tour (Listes et Blocs)', fontsize=16, y=1.01)
+
+plt.tight_layout()
+plt.savefig('../plots/scores_listes_premier_tour.png')
+
+plt.show()
+```
+
+# Analyse du Second tour
+
+```{python}
+display(deuxieme_tour.head())
+```
+
+```{python}
+emargement = deuxieme_tour['votants'] == deuxieme_tour['votants_ap_emargement']
+
+emargement.value_counts()
+
+display(deuxieme_tour.loc[~emargement, ['bureau', 'votants', 'votants_ap_emargement']])
+```
+
+```{python}
+deuxieme_tour['tx_participation'] = (deuxieme_tour['votants'] / deuxieme_tour['inscrits'])*100
+n, bins, patches = plt.hist(deuxieme_tour['tx_participation'], 50, edgecolor = 'black', facecolor = 'green')
+plt.xlabel('Taux de participation final')
+plt.ylabel('Nombre de bureau de vote')
+plt.title('Taux de participation au deuxième Tour à travers les différents bureaux de vote')
+```
+
+```{python}
+participation_premier = premier_tour['votants'].sum()
+participation_deuxieme = deuxieme_tour['votants'].sum()
+
+participation = [participation_premier, participation_deuxieme]
+
+fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 2.5 * 2), sharex=True)
+
+for ax, (nom_variable, donnees), partic in zip(axes, {'premier_tour' : premier_tour['tx_participation'], 
+                                              'deuxieme_tour' : deuxieme_tour['tx_participation']}.items(), participation):
+    
+    ax.hist(donnees, bins=50, edgecolor='black', alpha=0.8)
+    
+    titre_propre = nom_variable.replace('scores_', '').replace('_', ' ').title()
+    ax.set_title(titre_propre, fontsize=12)
+    ax.set_ylabel('Bureaux', fontsize=9)
+
+    texte_info = f"Nombres de votans : {partic:.1f}"
+    
+    ax.text(x=15, y=15, s=texte_info, 
+            fontsize=10, 
+            color='darkred',
+            style='italic') 
+
+    
+    
+axes[-1].set_xlabel('Taux de participation par bureau (%)', fontsize=12)
+
+fig.suptitle('Distribution des Taux de participation', fontsize=16, y=1.01)
+
+plt.tight_layout()
+plt.savefig('../plots/Taux_participation_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+deuxieme_tour['tx_nuls_blc'] = deuxieme_tour['blancs'] + deuxieme_tour['nuls']
+n, bins, patches = plt.hist(deuxieme_tour['tx_nuls_blc'], 50, edgecolor = 'black', facecolor = 'green')
+plt.xlabel('Taux de votes blancs et nuls')
+plt.ylabel('Nombre de bureau de vote')
+plt.title('Taux de votes blancs et nuls au deuxième Tour à travers les différents bureaux de vote')
+```
+
+```{python}
+votes_blancs_nuls_premier = premier_tour['tx_nuls_blc'].sum()
+votes_blancs_nuls_deuxieme = deuxieme_tour['tx_nuls_blc'].sum()
+
+votes_blancs_nuls = [votes_blancs_nuls_premier, votes_blancs_nuls_deuxieme]
+
+fig, axes = plt.subplots(nrows=2, ncols=1, figsize=(10, 2.5 * 2), sharex=True)
+
+for ax, (nom_variable, donnees), votes_blancs in zip(axes, {'premier_tour' : premier_tour['tx_nuls_blc'], 
+                                              'deuxieme_tour' : deuxieme_tour['tx_nuls_blc']}.items(), votes_blancs_nuls):
+    
+    ax.hist(donnees, bins=50, edgecolor='black', alpha=0.8)
+    
+    titre_propre = nom_variable.replace('scores_', '').replace('_', ' ').title()
+    ax.set_title(titre_propre, fontsize=12)
+    ax.set_ylabel('Bureaux', fontsize=9)
+    
+    texte_info = f"Nombres de votes blancs/nuls : {votes_blancs:.1f}"
+    
+    ax.text(x=25, y=15, s=texte_info, 
+            fontsize=10, 
+            color='darkred',
+            style='italic') 
+    
+axes[-1].set_xlabel('Nombre de votes blancs ou nuls par bureau', fontsize=12)
+
+fig.suptitle('Distribution du nombre de votes blancs ou nuls', fontsize=16, y=1.01)
+
+plt.tight_layout()
+plt.savefig('../plots/Votes_blancs_nuls_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+votants_deuxieme_tour = deuxieme_tour['exprimes'].sum()
+
+scores_Moudenc = [(deuxieme_tour['Moudenc'] / deuxieme_tour['votants']) *100, deuxieme_tour['Moudenc']]
+scores_Piquemal = [(deuxieme_tour['Piquemal'] / deuxieme_tour['votants']) *100, deuxieme_tour['Piquemal']]
+
+scores_deuxieme_tour = {'scores_Piquemal' : scores_Piquemal,
+                        'scores_Moudenc' : scores_Moudenc}
+```
+
+```{python}
+n_graphs = len(scores_deuxieme_tour)
+
+fig, axes = plt.subplots(nrows=n_graphs, ncols=1, figsize=(10, 2.5 * n_graphs), sharex=True)
+
+colors = ['darkred', 'blue']
+
+for ax, (nom_variable, donnees), color in zip(axes, scores_deuxieme_tour.items(), colors):
+    
+    ax.hist(donnees[0], bins=50, edgecolor='black', alpha=0.8, facecolor = color)
+    
+    titre_propre = nom_variable.replace('scores_', '').replace('_', ' ').title()
+    ax.set_title(titre_propre, fontsize=12)
+    ax.set_ylabel('Bureaux', fontsize=9)
+
+    score = 100*(donnees[1].sum()) / votants_deuxieme_tour
+   
+    texte_info = f"Score : {score:.1f}%"
+    
+    ax.text(x=65, y=15, s=texte_info, 
+            fontsize=10, 
+            color=color,
+            style='italic') 
+    
+    ax.axvline(x=50, color='red', linestyle='--', linewidth=1.5, label='50%')
+
+axes[-1].set_xlabel('Taux de vote par bureau (%)', fontsize=12)
+
+fig.suptitle('Distribution des votes au deuxieme tour (Listes et Blocs)', fontsize=16, y=1.01)
+
+plt.tight_layout()
+plt.savefig('../plots/scores_listes_second_tour.png')
+
+plt.show()
+```
+
+# Analyse Multivariée et Clustering (Typologie des bureaux)
+
+```{python}
+from sklearn.preprocessing import StandardScaler
+from sklearn.decomposition import PCA
+from sklearn.cluster import KMeans
+
+liste_bureau = premier_tour['bureau']
+
+df = premier_tour.drop(columns = ['Tour', 'bureau', 'votants', 'votants_ap_emargement', 'adresse', 'Geo_Point', 'Geo_Shape',
+       'gml_id', 'infobulle', 'oid', 'Nom', 'tx_participation', 'tx_nuls_blc', 'exprimes'])
+
+df['blc_nuls'] = df['blancs'] + df['nuls']
+
+df = df.drop(columns=['blancs', 'nuls'])
+
+listes_candidates = df.columns[1:]
+
+df[listes_candidates] = df[listes_candidates].div(df['inscrits'], axis=0) * 100
+
+df = df.drop(columns=['inscrits'])
+```
+
+```{python}
+display(df.head())
+```
+
+```{python}
+
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(df)
+
+pca = PCA(n_components=2) 
+X_pca = pca.fit_transform(X_scaled)
+
+print(f"Variance expliquée par axe : {pca.explained_variance_ratio_ * 100}")
+
+plt.figure(figsize=(8, 6))
+plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.7, edgecolors='k')
+plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
+plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
+plt.title('Espace politique des bureaux de vote (ACP)')
+plt.show()
+```
+
+```{python}
+colonnes_totales = df.columns
+
+df_loadings = pd.DataFrame(
+    pca.components_.T, 
+    columns=['PC1', 'PC2'], 
+    index=colonnes_totales  
+)
+
+print("--- Contributions à l'axe PC1 ---")
+display(df_loadings.sort_values(by='PC1', ascending=False)['PC1'])
+
+print("\n--- Contributions à l'axe PC2 ---")
+display(df_loadings.sort_values(by='PC2', ascending=False)['PC2'])
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(10, 8))
+
+ax.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.3, color='grey')
+
+poids_pc1 = pca.components_[0]
+poids_pc2 = pca.components_[1]
+
+scale = np.max(np.abs(X_pca)) 
+
+for i, variable in enumerate(colonnes_totales):
+    ax.arrow(0, 0, poids_pc1[i] * scale, poids_pc2[i] * scale, 
+             color='red', alpha=0.8, head_width=0.1)
+    
+    ax.text(poids_pc1[i] * scale * 1.15, poids_pc2[i] * scale * 1.15, 
+            variable, color='darkred', ha='center', va='center', fontsize=11)
+
+ax.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
+ax.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
+ax.axhline(0, color='black', linestyle='--', linewidth=0.5)
+ax.axvline(0, color='black', linestyle='--', linewidth=0.5)
+ax.set_title('Biplot de l\'élection (Bureaux et Variables)')
+plt.savefig('../plots/Biplot_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+premier_tour['PC1'] = X_pca[:, 0]
+premier_tour['PC2'] = X_pca[:, 1]
+
+bureaux_extreme_droite_pc1 = premier_tour.nlargest(5, 'PC1')
+
+bureaux_extreme_bas_pc2 = premier_tour.nsmallest(5, 'PC2')
+
+colonnes_totales_analyse = colonnes_totales[:-1]
+
+display(bureaux_extreme_droite_pc1[['bureau', 'PC1']])
+display(bureaux_extreme_bas_pc2[['bureau', 'PC2']])
+```
+
+```{python}
+from sklearn.cluster import KMeans
+from sklearn.metrics import silhouette_score
+
+k_range = range(2, 11)
+
+inertias = []
+silhouette_scores = []
+
+for k in k_range:
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
+    
+    kmeans.fit(X_pca) 
+    
+    inertias.append(kmeans.inertia_)
+    
+    score = silhouette_score(X_pca, kmeans.labels_)
+    silhouette_scores.append(score)
+
+fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(8, 10), sharex=True)
+
+ax1.plot(k_range, inertias, marker='o', linewidth=2, color='tab:blue')
+ax1.set_title('Méthode du Coude (Inertie intra-cluster)', fontsize=12)
+ax1.set_ylabel('Inertie')
+ax1.grid(True, linestyle='--', alpha=0.6)
+
+ax2.plot(k_range, silhouette_scores, marker='s', linewidth=2, color='tab:green')
+ax2.set_title('Score de Silhouette (Plus haut = Meilleur)', fontsize=12)
+ax2.set_xlabel('Nombre de clusters (k)', fontsize=12)
+ax2.set_ylabel('Score moyen')
+ax2.grid(True, linestyle='--', alpha=0.6)
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+kmeans_final = KMeans(n_clusters=3, random_state=42, n_init='auto')
+
+labels_clusters = kmeans_final.fit_predict(X_scaled)
+
+df['Cluster'] = labels_clusters
+premier_tour['Cluster_premier'] = labels_clusters
+
+print("Nombre de bureaux par cluster :")
+print(df['Cluster'].value_counts())
+```
+
+```{python}
+profils_clusters = df.groupby('Cluster')[colonnes_totales_analyse].mean()
+
+display(profils_clusters.round(1))
+```
+
+```{python}
+import seaborn as sns
+
+plt.figure(figsize=(12, 4)) 
+
+sns.heatmap(profils_clusters, annot=True, cmap='RdBu_r', center=profils_clusters.mean().mean(), fmt=".1f", linewidths=.5)
+
+plt.title('Profil électoral des 3 typologies de bureaux (%)', fontsize=14)
+plt.ylabel('Cluster')
+plt.xlabel('Listes et Abstention')
+plt.xticks(rotation=45, ha='right')
+
+plt.tight_layout()
+plt.savefig('../plots/Clusters_premier_tour.png')
+
+plt.show()
+```
+
+# Analyse dynamique temporelle
+
+```{python}
+df_fusion = pd.merge(premier_tour, deuxieme_tour, on = 'bureau')
+```
+
+```{python}
+print(df_fusion.columns)
+```
+
+```{python}
+columns_fusion_name = ['Tour', 'bureau', 'inscrits_premier', 'abstentions_premier', 'votants_premier',
+       'votants_ap_emargement_premier', 'blancs_premier', 'nuls_premier', 'exprimes_premier',
+       'Briançon', 'Scalli', 'Adrada', 'Menendez', 'Moudenc_premier', 'Leonardelli',
+       'Cottrel', 'Meilhac', 'Piquemal_premier', 'Pedinotti', 'adresse_premier',
+       'Geo_Point_premier', 'Geo_Shape_premier', 'gml_id_premier', 'infobulle_premier', 'oid_premier',
+       'Nom_premier', 'tx_participation_premier', 'tx_nuls_blc_premier', 'PC1_premier', 'PC2_premier', 'Cluster_premier',
+       'Tour_second', 'inscrits_second', 'abstentions_second', 'votants_second',
+       'votants_ap_emargement_second', 'blancs_second', 'nuls_second', 'exprimes_second',
+       'Moudenc_second', 'Piquemal_second', 'adresse_second', 'Geo_Point_second', 'Geo_Shape_second',
+       'gml_id_second', 'infobulle_second', 'oid_second', 'Nom_second', 'tx_participation_second',
+       'tx_nuls_blc_second']
+
+df_fusion.columns = columns_fusion_name
+
+df_fusion['Delta_Abstention'] = df_fusion['abstentions_second'] - df_fusion['abstentions_premier']
+df_fusion['blc_nuls_premier'] = df_fusion['blancs_premier'] + df_fusion['nuls_premier']
+df_fusion['blc_nuls_second'] = df_fusion['blancs_second'] + df_fusion['nuls_second']
+df_fusion['Delta_Gauche'] = df_fusion['Piquemal_second'] - (df_fusion['Briançon'] + df_fusion['Piquemal_premier'])
+
+df_fusion_cleaned = df_fusion.drop(columns=['Tour', 'Tour_second', 'bureau', 'votants_ap_emargement_premier', 'votants_ap_emargement_second', 
+                                    'adresse_premier', 'Geo_Point_premier', 
+                                    'Geo_Shape_premier', 'gml_id_premier', 
+                                    'infobulle_premier', 'oid_premier', 'exprimes_premier', 'exprimes_second', 
+                                    'Nom_premier', 'tx_participation_premier', 
+                                    'adresse_second', 'votants_premier', 'votants_second', 
+                                    'Geo_Point_second', 'Geo_Shape_second','tx_nuls_blc_premier', 'tx_nuls_blc_second',
+                                    'gml_id_second', 'infobulle_second', 'blancs_premier', 'nuls_premier', 'blancs_second', 'nuls_second',
+                                    'oid_second', 'Nom_second', 'tx_participation_second'])
+
+```
+
+```{python}
+listes_candidates_premier = df_fusion_cleaned.columns[1:11]
+listes_candidates_second = df_fusion_cleaned.columns[16:19]
+
+df_fusion_cleaned[listes_candidates_premier] = df_fusion_cleaned[listes_candidates_premier].div(df_fusion_cleaned['inscrits_premier'], axis=0) * 100
+df_fusion_cleaned[listes_candidates_second] = df_fusion_cleaned[listes_candidates_second].div(df_fusion_cleaned['inscrits_second'], axis=0) * 100
+df_fusion_cleaned['blc_nuls_premier'] = df_fusion_cleaned['blc_nuls_premier'] /df_fusion_cleaned['inscrits_premier'] *100
+df_fusion_cleaned['blc_nuls_second'] = df_fusion_cleaned['blc_nuls_second'] /df_fusion_cleaned['inscrits_second'] *100
+
+df_fusion_cleaned = df_fusion_cleaned.drop(columns=['inscrits_premier', 'inscrits_second', 'PC1_premier', 'PC2_premier', 'Cluster_premier'])
+```
+
+```{python}
+scaler = StandardScaler()
+X_scaled = scaler.fit_transform(df_fusion_cleaned)
+
+pca = PCA(n_components=2) 
+X_pca = pca.fit_transform(X_scaled)
+
+print(f"Variance expliquée par axe : {pca.explained_variance_ratio_ * 100}")
+
+plt.figure(figsize=(8, 6))
+plt.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.7, edgecolors='k')
+plt.xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
+plt.ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
+plt.title('Espace politique des bureaux de vote (ACP)')
+plt.show()
+```
+
+```{python}
+colonnes_totales = df_fusion_cleaned.columns
+
+df_loadings = pd.DataFrame(
+    pca.components_.T, 
+    columns=['PC1', 'PC2'], 
+    index=colonnes_totales  
+)
+
+print("--- Contributions à l'axe PC1 ---")
+display(df_loadings.sort_values(by='PC1', ascending=False)['PC1'])
+
+print("\n--- Contributions à l'axe PC2 ---")
+display(df_loadings.sort_values(by='PC2', ascending=False)['PC2'])
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(10, 8))
+
+ax.scatter(X_pca[:, 0], X_pca[:, 1], alpha=0.3, color='grey')
+
+poids_pc1 = pca.components_[0]
+poids_pc2 = pca.components_[1]
+
+scale = np.max(np.abs(X_pca)) 
+
+for i, variable in enumerate(colonnes_totales):
+    ax.arrow(0, 0, poids_pc1[i] * scale, poids_pc2[i] * scale, 
+             color='red', alpha=0.8, head_width=0.1)
+    
+    ax.text(poids_pc1[i] * scale * 1.15, poids_pc2[i] * scale * 1.15, 
+            variable, color='darkred', ha='center', va='center', fontsize=11)
+
+ax.set_xlabel(f'PC1 ({pca.explained_variance_ratio_[0]:.1%})')
+ax.set_ylabel(f'PC2 ({pca.explained_variance_ratio_[1]:.1%})')
+ax.axhline(0, color='black', linestyle='--', linewidth=0.5)
+ax.axvline(0, color='black', linestyle='--', linewidth=0.5)
+ax.set_title('Biplot de l\'élection (Bureaux et Variables)')
+plt.savefig('../plots/Biplot_second_tour.png')
+plt.show()
+```
+
+```{python}
+k_range = range(2, 11)
+
+inertias = []
+silhouette_scores = []
+
+for k in k_range:
+    kmeans = KMeans(n_clusters=k, random_state=42, n_init='auto')
+    
+    kmeans.fit(X_pca) 
+    
+    inertias.append(kmeans.inertia_)
+    
+    score = silhouette_score(X_pca, kmeans.labels_)
+    silhouette_scores.append(score)
+
+fig, (ax1, ax2) = plt.subplots(nrows=2, ncols=1, figsize=(8, 10), sharex=True)
+
+ax1.plot(k_range, inertias, marker='o', linewidth=2, color='tab:blue')
+ax1.set_title('Méthode du Coude (Inertie intra-cluster)', fontsize=12)
+ax1.set_ylabel('Inertie')
+ax1.grid(True, linestyle='--', alpha=0.6)
+
+ax2.plot(k_range, silhouette_scores, marker='s', linewidth=2, color='tab:green')
+ax2.set_title('Score de Silhouette (Plus haut = Meilleur)', fontsize=12)
+ax2.set_xlabel('Nombre de clusters (k)', fontsize=12)
+ax2.set_ylabel('Score moyen')
+ax2.grid(True, linestyle='--', alpha=0.6)
+
+plt.tight_layout()
+plt.show()
+```
+
+```{python}
+df_fusion['PC1'] = X_pca[:, 0]
+df_fusion['PC2'] = X_pca[:, 1]
+
+bureaux_extreme_droite_pc1 = df_fusion.nlargest(5, 'PC1')
+
+bureaux_extreme_bas_pc2 = df_fusion.nsmallest(5, 'PC2')
+
+colonnes_totales_analyse = colonnes_totales[:-1]
+
+display(bureaux_extreme_droite_pc1[['bureau', 'PC1']])
+display(bureaux_extreme_bas_pc2[['bureau', 'PC2']])
+```
+
+```{python}
+print(df_fusion.columns)
+print(df_fusion.columns[3:19])
+print(df_fusion.columns[33:41])
+```
+
+```{python}
+df_test = df_fusion
+```
+
+```{python}
+listes_candidates_premier = df_fusion.columns[3:19]
+listes_candidates_second = df_fusion.columns[33:41]
+
+df_fusion[listes_candidates_premier] = df_fusion[listes_candidates_premier].div(df_fusion['inscrits_premier'], axis=0) * 100
+df_fusion[listes_candidates_second] = df_fusion[listes_candidates_second].div(df_fusion['inscrits_second'], axis=0) * 100
+```
+
+```{python}
+kmeans_final = KMeans(n_clusters=3, random_state=42, n_init='auto')
+
+labels_clusters = kmeans_final.fit_predict(X_scaled)
+
+df_fusion['Cluster_3'] = labels_clusters
+
+print("Nombre de bureaux par cluster :")
+print(df_fusion['Cluster_3'].value_counts())
+
+profils_clusters = df_fusion.groupby('Cluster_3')[colonnes_totales_analyse].mean()
+display(profils_clusters.round(1))
+
+plt.figure(figsize=(12, 4)) 
+
+sns.heatmap(profils_clusters, annot=True, cmap='RdBu_r', center=profils_clusters.mean().mean(), fmt=".1f", linewidths=.5)
+
+plt.title('Profil électoral des 3 typologies de bureaux (%)', fontsize=14)
+plt.ylabel('Cluster')
+plt.xlabel('Listes et Abstention')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.savefig('../plots/Cluster_3.png')
+
+plt.show()
+```
+
+```{python}
+kmeans_final = KMeans(n_clusters=8, random_state=42, n_init='auto')
+
+labels_clusters = kmeans_final.fit_predict(X_scaled)
+
+df_fusion['Cluster_8'] = labels_clusters
+
+print("Nombre de bureaux par cluster :")
+print(df_fusion['Cluster_8'].value_counts())
+
+profils_clusters = df_fusion.groupby('Cluster_8')[colonnes_totales_analyse].mean()
+display(profils_clusters.round(1))
+
+plt.figure(figsize=(12, 4)) 
+
+sns.heatmap(profils_clusters, annot=True, cmap='RdBu_r', center=profils_clusters.mean().mean(), fmt=".1f", linewidths=.5)
+
+plt.title('Profil électoral des 8 typologies de bureaux (%)', fontsize=14)
+plt.ylabel('Cluster')
+plt.xlabel('Listes et Abstention')
+plt.xticks(rotation=45, ha='right')
+plt.tight_layout()
+plt.savefig('../plots/Clusters_8.png')
+
+plt.show()
+```
+
+# Analyse Spatiale des résultats
+
+```{python}
+print(df_fusion.columns)
+```
+
+```{python}
+df = df_fusion.drop(columns=['adresse_premier', 'Geo_Point_premier',
+       'Geo_Shape_premier', 'gml_id_premier', 'infobulle_premier',
+       'oid_premier', 'Nom_premier', 'adresse_second', 'Geo_Point_second', 'Geo_Shape_second',
+       'gml_id_second', 'infobulle_second', 'oid_second', 'Nom_second'])
+```
+
+```{python}
+print(df.columns)
+print(df.columns[3:19])
+print(df.columns[26:34])
+```
+
+```{python}
+import geopandas as gpd
+
+gdf_bureaux = gpd.read_file("../data/raw/election-2026-lieux-de-vote.geojson")
+
+gdf_bureaux['bureau'] = gdf_bureaux['bureau'].astype(str).str.zfill(4)
+
+gdf_analyse = gdf_bureaux.merge(df, on='bureau')
+
+print(f"Bureaux dans le fond de carte : {len(gdf_bureaux)}")
+print(f"Bureaux après fusion : {len(gdf_analyse)}")
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Cluster_premier', 
+    categorical=True, 
+    legend=True, 
+    cmap='Set2', 
+    edgecolor='white', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'title': "Typologies de bureaux", 'loc': 'lower left'}
+)
+
+ax.set_title("Structure socio-électorale de la ville premier tour", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Clusters_map_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Cluster_3', 
+    categorical=True, 
+    legend=True, 
+    cmap='Set2', 
+    edgecolor='white', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'title': "Typologies de bureaux", 'loc': 'lower left'}
+)
+
+ax.set_title("Structure socio-électorale de la ville (3 Clusters) premier et deuxième tour", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Clusters_3_joined_map.png')
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Cluster_8', 
+    categorical=True, 
+    legend=True, 
+    cmap='Set2', 
+    edgecolor='white', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'title': "Typologies de bureaux", 'loc': 'lower left'}
+)
+
+ax.set_title("Structure socio-électorale de la ville (8 Clusters)", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Clusters_8_map.png')
+plt.show()
+```
+
+```{python}
+from libpysal.weights import Queen
+from esda.moran import Moran
+
+w = Queen.from_dataframe(gdf_analyse, use_index=False)
+w.transform = 'R'
+
+variable_cible = gdf_analyse['abstentions_premier']
+mi = Moran(variable_cible, w)
+
+print(f"Indice I de Moran : {mi.I:.4f}")
+print(f"p-value du test de permutation : {mi.p_sim:.4f}")
+```
+
+```{python}
+display(gdf_analyse['abstentions_premier'].head())
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='abstentions_premier', 
+    categorical=False,
+    legend=True, 
+    cmap='binary', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique de l'abstension au premier tour", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Abstentions_map_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Briançon', 
+    categorical=False, 
+    legend=True, 
+    cmap='Greens', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du vote de la liste Vivre Mieux", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Vivre_mieux_map_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Moudenc_premier', 
+    categorical=False, 
+    legend=True, 
+    cmap='Blues', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du vote de la liste Moudenc", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Moudenc_map_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Piquemal_premier', 
+    categorical=False, 
+    legend=True, 
+    cmap='Reds', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du vote de la liste Piquemal", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Piquemal_map_premier_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='abstentions_second', 
+    categorical=False, 
+    legend=True, 
+    cmap='binary', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique de l'abstention (second tour)", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Abstentions_map_deuxieme_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Moudenc_second', 
+    categorical=False, 
+    legend=True, 
+    cmap='Blues', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du vote de la liste Moudenc (second tour)", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Moudenc_map_deuxieme_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Piquemal_second', 
+    categorical=False, 
+    legend=True, 
+    cmap='Reds', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Taux de vote (%)", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du vote de la liste Gauche unie", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Gauche_unie_map_deuxieme_tour.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Delta_Gauche', 
+    categorical=False, vmin = -100, vmax = 100,
+    legend=True, 
+    cmap='RdBu', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Delta_Gauche", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du Delta_Gauche", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Delta_gauche_map.png')
+
+plt.show()
+```
+
+```{python}
+fig, ax = plt.subplots(figsize=(12, 10))
+
+gdf_analyse.plot(
+    column='Delta_Abstention',
+    categorical=False, 
+    legend=True, 
+    cmap='gray', 
+    edgecolor='black', 
+    linewidth=0.5,
+    ax=ax,
+    legend_kwds={'label': "Delta_Abstention", 
+        'orientation': "horizontal",
+        'shrink': 0.6}
+)
+
+ax.set_title("Distribution géographique du Delta Abstention", fontsize=16, fontweight='bold')
+ax.axis('off') 
+
+plt.tight_layout()
+plt.savefig('../plots/Delta_Abstention_map.png')
+
+plt.show()
+```
+
